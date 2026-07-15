@@ -133,7 +133,7 @@
         async function radarGuncelle() {
             try {
                 // BtcTurk API'sine doğrudan bağlantı
-                const response = await fetch('/api/veri');
+                const response = await fetch('https://kripto-radar-ff7n.onrender.com/api/veri');
                 const result = await response.json();
                 const tumVeriler = result.data;
                 let anlikDegisimler = [];
