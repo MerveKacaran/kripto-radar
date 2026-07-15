@@ -125,34 +125,32 @@
 
     <script>
     async function veriGetir() {
-        try {
-            // Sunucunun tam adresini kullanıyoruz
-            const response = await fetch('https://kripto-radar-ff7n.onrender.com/api/veri');
-            if (!response.ok) throw new Error('Sunucudan yanıt gelmedi');
-            
-            const data = await response.json();
-            
-            // Tabloyu güncelleme
-            const tablo = document.getElementById('radar-rows');
-            tablo.innerHTML = ''; // Önce eskiyi temizle
-            
-            data.top5.forEach(coin => {
-                const row = `<tr>
-                    <td>${coin.sembol}</td>
-                    <td>${coin.fiyat}</td>
-                    <td style="color: ${coin.degisim_orani >= 0 ? 'green' : 'red'}">${coin.degisim_format}</td>
-                    <td>${coin.sinyal}</td>
-                </tr>`;
-                tablo.innerHTML += row;
-            });
-            
-            document.getElementById('status').innerText = "Son güncelleme: " + new Date().toLocaleTimeString();
-            
-        } catch (error) {
-            console.error("Hata:", error);
-            document.getElementById('status').innerText = "Veri alınamadı, tekrar deneniyor...";
+            try {
+                const response = await fetch('https://kripto-radar-ff7n.onrender.com/api/veri');
+                const data = await response.json();
+                
+                if (data.top5) {
+                    const tablo = document.getElementById('radar-rows');
+                    tablo.innerHTML = '';
+                    
+                    data.top5.forEach(coin => {
+                        // Burada 'Aldım' butonunu orijinal halinle ekliyoruz
+                        const row = `<tr>
+                            <td>${coin.sembol}</td>
+                            <td>${coin.fiyat}</td>
+                            <td class="${coin.degisim_orani >= 0 ? 'kar' : 'zarar'}">${coin.degisim_format}</td>
+                            <td><span class="badge">${coin.sinyal}</span></td>
+                            <td><button class="btn btn-aldim" onclick="pozisyonAc('${coin.sembol}', ${coin.fiyat_raw || 0})">Aldım ✅</button></td>
+                        </tr>`;
+                        tablo.innerHTML += row;
+                    });
+                    document.getElementById('status').innerText = "Son güncelleme: " + new Date().toLocaleTimeString();
+                }
+            } catch (error) {
+                console.error("Hata:", error);
+                document.getElementById('status').innerText = "Veri alınamadı, tekrar deneniyor...";
+            }
         }
-    }
 
     // Her 5 saniyede bir veriyi otomatik yenile
     setInterval(veriGetir, 5000);
