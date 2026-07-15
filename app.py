@@ -73,3 +73,12 @@ def veri_getir():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
+    from flask import Flask, jsonify, send_file
+from flask_cors import CORS # Bunu ekle
+import ccxt
+import os
+
+app = Flask(__name__)
+CORS(app) # Bunu ekle: Bu satır, her türlü güvenlik engelini kaldırır ve tarayıcının veriyi çekmesine izin verir.
+borsa = ccxt.btcturk()
+# ... kodun geri kalanı aynı kalacak ...
