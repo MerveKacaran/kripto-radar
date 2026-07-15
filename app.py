@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, send_file
 import ccxt
+import os
 
 app = Flask(__name__)
 borsa = ccxt.btcturk()
@@ -7,8 +8,12 @@ piyasa_hafizasi = {}
 
 @app.route('/')
 def ana_sayfa():
-    # Sayfaya girildiğinde HTML arayüzümüzü gösterir
-    return send_file('index.html')
+    # index.html dosyasının yerini kesin olarak bulmasını sağlıyoruz
+    dosya_yolu = os.path.join(os.path.dirname(__file__), 'index.html')
+    if os.path.exists(dosya_yolu):
+        return send_file(dosya_yolu)
+    else:
+        return "HATA: index.html dosyası bulunamadı! Lütfen GitHub'da dosya adının tam olarak 'index.html' olduğundan emin ol.", 404
 
 @app.route('/api/veri')
 def veri_getir():
@@ -43,7 +48,7 @@ def veri_getir():
                     
                     anlik_degisimler.append({
                         "sembol": sembol,
-                        "fiyat_raw": sonFiyat,
+                        "fiyat_raw": son_fiyat, # Harf hatası düzeltildi
                         "fiyat": f"{son_fiyat:,.4f} ₺",
                         "degisim_orani": degisim_orani,
                         "degisim_format": f"%{degisim_orani:.4f}",
