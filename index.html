@@ -133,7 +133,7 @@
         async function radarGuncelle() {
             try {
                 // BtcTurk API'sine doğrudan bağlantı
-                const response = await fetch('https://api.btcturk.com/api/v2/ticker');
+                const response = await fetch('[https://corsproxy.io/?https://api.btcturk.com/api/v2/ticker](https://corsproxy.io/?https://api.btcturk.com/api/v2/ticker)');
                 const result = await response.json();
                 const tumVeriler = result.data;
                 let anlikDegisimler = [];
