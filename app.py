@@ -1,10 +1,12 @@
+Python
 from flask import Flask, jsonify, send_file
 from flask_cors import CORS
 import ccxt
 import os
 
 app = Flask(__name__)
-CORS(app) # Tüm güvenlik engellerini aşan anahtarımız
+# CORS'u tüm kaynaklara ve tüm metotlara tam yetkiyle açıyoruz
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 borsa = ccxt.btcturk()
 piyasa_hafizasi = {}
