@@ -1,8 +1,11 @@
 from flask import Flask, jsonify, send_file
+from flask_cors import CORS
 import ccxt
 import os
 
 app = Flask(__name__)
+CORS(app) # Tüm güvenlik engellerini aşan anahtarımız
+
 borsa = ccxt.btcturk()
 piyasa_hafizasi = {}
 
@@ -13,7 +16,7 @@ def ana_sayfa():
     if os.path.exists(dosya_yolu):
         return send_file(dosya_yolu)
     else:
-        return "HATA: index.html dosyası bulunamadı! Lütfen GitHub'da dosya adının tam olarak 'index.html' olduğundan emin ol.", 404
+        return "HATA: index.html dosyası bulunamadı!", 404
 
 @app.route('/api/veri')
 def veri_getir():
@@ -26,9 +29,8 @@ def veri_getir():
         for sembol, veri in tum_veriler.items():
             if '/TRY' in sembol:
                 son_fiyat = veri.get('last')
-                if son_fiyat is None:
-                    continue
-                    
+                if son_fiyat is None: continue
+                
                 tum_fiyatlar[sembol] = son_fiyat
                 
                 if sembol not in piyasa_hafizasi:
@@ -48,7 +50,7 @@ def veri_getir():
                     
                     anlik_degisimler.append({
                         "sembol": sembol,
-                        "fiyat_raw": son_fiyat, # Harf hatası düzeltildi
+                        "fiyat_raw": son_fiyat,
                         "fiyat": f"{son_fiyat:,.4f} ₺",
                         "degisim_orani": degisim_orani,
                         "degisim_format": f"%{degisim_orani:.4f}",
@@ -73,12 +75,3 @@ def veri_getir():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
-    from flask import Flask, jsonify, send_file
-from flask_cors import CORS # Bunu ekle
-import ccxt
-import os
-
-app = Flask(__name__)
-CORS(app) # Bunu ekle: Bu satır, her türlü güvenlik engelini kaldırır ve tarayıcının veriyi çekmesine izin verir.
-borsa = ccxt.btcturk()
-# ... kodun geri kalanı aynı kalacak ...
