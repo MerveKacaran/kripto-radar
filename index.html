@@ -124,7 +124,8 @@
     </div>
 
     <script>
-    async function veriGetir() {
+        // --- 1. SUNUCU VERİ ÇEKME (RADAR) ---
+        async function veriGetir() {
             try {
                 const response = await fetch('https://kripto-radar-ff7n.onrender.com/api/veri');
                 const data = await response.json();
@@ -134,7 +135,7 @@
                     tablo.innerHTML = '';
                     
                     data.top5.forEach(coin => {
-                        // Burada 'Aldım' butonunu orijinal halinle ekliyoruz
+                        // Burada 'fiyat_raw' değerini buton için kullanıyoruz
                         const row = `<tr>
                             <td>${coin.sembol}</td>
                             <td>${coin.fiyat}</td>
@@ -148,13 +149,54 @@
                 }
             } catch (error) {
                 console.error("Hata:", error);
-                document.getElementById('status').innerText = "Veri alınamadı, tekrar deneniyor...";
+                document.getElementById('status').innerText = "Sunucuya bağlanılamadı...";
             }
         }
 
-    // Her 5 saniyede bir veriyi otomatik yenile
-    setInterval(veriGetir, 5000);
-    veriGetir();
-</script>
+        // --- 2. ORİJİNAL POZİSYON VE GÜNLÜK MANTIĞI ---
+        let aktifIslemler = JSON.parse(localStorage.getItem('aktifIslemler')) || [];
+
+        function pozisyonAc(sembol, fiyat) {
+            const islem = {
+                id: Date.now(),
+                sembol: sembol,
+                alisFiyati: parseFloat(fiyat),
+                tarih: new Date().toLocaleTimeString()
+            };
+            aktifIslemler.push(islem);
+            localStorage.setItem('aktifIslemler', JSON.stringify(aktifIslemler));
+            aktifTabloyuCiz();
+            alert(sembol + " için pozisyon açıldı!");
+        }
+
+        function aktifTabloyuCiz() {
+            const tbody = document.getElementById('aktif-rows');
+            tbody.innerHTML = '';
+            
+            aktifIslemler.forEach((islem, index) => {
+                tbody.innerHTML += `<tr>
+                    <td>${islem.sembol}</td>
+                    <td>${islem.alisFiyati} ₺</td>
+                    <td>Takip ediliyor...</td>
+                    <td><button class="btn btn-sattim" onclick="pozisyonKapat(${index})">Sat ❌</button></td>
+                </tr>`;
+            });
+        }
+
+        function pozisyonKapat(index) {
+            aktifIslemler.splice(index, 1);
+            localStorage.setItem('aktifIslemler', JSON.stringify(aktifIslemler));
+            aktifTabloyuCiz();
+        }
+
+        // Sayfa açıldığında başlat
+        window.onload = function() {
+            aktifTabloyuCiz();
+            veriGetir();
+        };
+
+        // Her 5 saniyede bir radar verisini güncelle
+        setInterval(veriGetir, 5000);
+    </script>
 </body>
 </html>
