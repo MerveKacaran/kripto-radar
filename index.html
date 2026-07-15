@@ -114,6 +114,42 @@
                 document.getElementById('status').innerText = "Sunucuya bağlanılamadı...";
             }
         }
+        let aktifIslemler = JSON.parse(localStorage.getItem('aktifIslemler')) || [];
+
+function pozisyonAc(sembol, fiyat) {
+    const islem = {
+        id: Date.now(),
+        sembol: sembol,
+        alisFiyati: fiyat,
+        tarih: new Date().toLocaleTimeString()
+    };
+    aktifIslemler.push(islem);
+    localStorage.setItem('aktifIslemler', JSON.stringify(aktifIslemler));
+    aktifTabloyuCiz();
+}
+
+function aktifTabloyuCiz() {
+    const tbody = document.getElementById('aktif-rows');
+    tbody.innerHTML = '';
+    
+    aktifIslemler.forEach((islem, index) => {
+        tbody.innerHTML += `<tr>
+            <td>${islem.sembol}</td>
+            <td>${islem.alisFiyati} ₺</td>
+            <td id="durum-${islem.id}">Takip ediliyor...</td>
+            <td><button class="btn btn-sattim" onclick="pozisyonKapat(${index})">Sat ❌</button></td>
+        </tr>`;
+    });
+}
+
+function pozisyonKapat(index) {
+    aktifIslemler.splice(index, 1);
+    localStorage.setItem('aktifIslemler', JSON.stringify(aktifIslemler));
+    aktifTabloyuCiz();
+}
+
+// Sayfa açıldığında eski işlemleri yükle
+window.onload = aktifTabloyuCiz;
 
         // Kendi pozisyon fonksiyonlarını buraya ekleyebilirsin
         function pozisyonAc(sembol, fiyat) {
