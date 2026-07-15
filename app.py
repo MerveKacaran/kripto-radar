@@ -4,7 +4,7 @@ import ccxt
 import os
 
 app = Flask(__name__)
-CORS(app) # Tüm engelleri burada kaldırıyoruz
+CORS(app) 
 
 borsa = ccxt.btcturk()
 piyasa_hafizasi = {}
@@ -19,23 +19,23 @@ def veri_getir():
     try:
         tum_veriler = borsa.fetch_tickers()
         anlik_degisimler = []
-        tum_fiyatlar = {}
         
         for sembol, veri in tum_veriler.items():
             if '/TRY' in sembol:
                 son_fiyat = veri.get('last')
-                if son_fiyat is None: continue
-                tum_fiyatlar[sembol] = son_fiyat
+                if son_fiyat is None or son_fiyat == 0: continue
                 
+                # Eğer daha önce hafızada yoksa kaydet ve devam et (ilk turda veri hesaplanamaz)
                 if sembol not in piyasa_hafizasi:
                     piyasa_hafizasi[sembol] = son_fiyat
                     continue
                     
-                onceki_fiyat = piyasa_hafizasi[son_fiyat] if son_fiyat in piyasa_hafizasi else piyasa_hafizasi[sembol]
-                # (Küçük düzeltme: hata payını azalttık)
+                onceki_fiyat = piyasa_hafizasi[sembol]
                 
+                # Değişim oranı hesapla
                 degisim_orani = ((son_fiyat - onceki_fiyat) / onceki_fiyat) * 100
                 
+                # Sinyal belirle
                 if degisim_orani >= 0.06: sinyal = "GÜÇLÜ AL 🚀"
                 elif degisim_orani >= 0.02: sinyal = "AL 🔥"
                 elif degisim_orani <= -0.06: sinyal = "GÜÇLÜ SAT 💥"
@@ -44,16 +44,20 @@ def veri_getir():
                 
                 anlik_degisimler.append({
                     "sembol": sembol,
-                    "fiyat_raw": son_fiyat,
-                    "fiyat": f"{son_fiyat:,.4f} ₺",
+                    "fiyat": f"{son_fiyat:,.2f} ₺",
                     "degisim_orani": degisim_orani,
-                    "degisim_format": f"%{degisim_orani:.4f}",
+                    "degisim_format": f"%{degisim_orani:.2f}",
                     "sinyal": sinyal
                 })
+                
+                # Hafızayı güncelle
                 piyasa_hafizasi[sembol] = son_fiyat
                 
+        # En büyük değişimleri sırala
         top_5 = sorted(anlik_degisimler, key=lambda x: x['degisim_orani'], reverse=True)[:5]
-        return jsonify({"top5": top_5, "tum_fiyatlar": tum_fiyatlar})
+        
+        return jsonify({"top5": top_5})
+        
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
