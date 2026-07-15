@@ -125,7 +125,8 @@
 
     <script>
         let aktifIslemler = JSON.parse(localStorage.getItem('aktifIslemler')) || [];
-        let sonFiyatlar = {}; // Sunucudan gelen fiyatları burada tutacağız
+        // Fiyatları kalıcı hafızada tutuyoruz
+        let sonFiyatlar = JSON.parse(localStorage.getItem('sonFiyatlar')) || {};
 
         async function veriGetir() {
             try {
@@ -133,11 +134,13 @@
                 const data = await response.json();
                 
                 if (data.top5) {
-                    // 1. RADAR GÜNCELLEME
                     const tablo = document.getElementById('radar-rows');
                     tablo.innerHTML = '';
+                    
                     data.top5.forEach(coin => {
-                        sonFiyatlar[coin.sembol] = coin.fiyat_raw; // Canlı fiyatları hafızaya al
+                        // Yeni fiyatı kaydet ve güncelle
+                        sonFiyatlar[coin.sembol] = coin.fiyat_raw;
+                        
                         tablo.innerHTML += `<tr>
                             <td>${coin.sembol}</td>
                             <td>${coin.fiyat}</td>
@@ -146,13 +149,17 @@
                             <td><button class="btn btn-aldim" onclick="pozisyonAc('${coin.sembol}', ${coin.fiyat_raw || 0})">Aldım ✅</button></td>
                         </tr>`;
                     });
+                    
+                    // Kalıcı hale getir
+                    localStorage.setItem('sonFiyatlar', JSON.stringify(sonFiyatlar));
                     document.getElementById('status').innerText = "Son güncelleme: " + new Date().toLocaleTimeString();
                     
-                    // 2. AKTİF İŞLEMLERİ GÜNCELLE
                     aktifTabloyuCiz();
                 }
             } catch (error) {
                 console.error("Hata:", error);
+                // Sunucu hata verse bile eski fiyatları kullanmaya devam et
+                aktifTabloyuCiz();
             }
         }
 
@@ -187,6 +194,7 @@
             aktifTabloyuCiz();
         }
 
+        // Sayfa her açıldığında verileri hemen ekrana bas
         setInterval(veriGetir, 5000);
         veriGetir();
     </script>
