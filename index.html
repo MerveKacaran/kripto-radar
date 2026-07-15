@@ -124,206 +124,39 @@
     </div>
 
     <script>
-        let aktifIslemler = JSON.parse(localStorage.getItem('aktifIslemler')) || [];
-        let tamamlananIslemler = JSON.parse(localStorage.getItem('tamamlananIslemler')) || [];
-        
-        let piyasaHafizasi = {}; 
-        let sonFiyatlar = {}; 
-
-        async function radarGuncelle() {
-            try {
-                // BtcTurk API'sine doğrudan bağlantı
-                const response = await fetch('https://api.btcturk.com/api/v2/ticker');
-                const result = await response.json();
-                const tumVeriler = result.data;
-                let anlikDegisimler = [];
-
-                tumVeriler.forEach(veri => {
-                    if (veri.pairNormalized && veri.pairNormalized.endsWith('_TRY')) {
-                        const sembol = veri.pairNormalized.replace('_', '/'); 
-                        const sonFiyat = veri.last;
-                        
-                        sonFiyatlar[sembol] = sonFiyat;
-
-                        // DÜZELTME: İlk açılışta boş ekran kalmaması için eski fiyatı anlık fiyat olarak kabul et
-                        const oncekiFiyat = piyasaHafizasi[sembol] || sonFiyat;
-                        const degisimOrani = oncekiFiyat > 0 ? ((sonFiyat - oncekiFiyat) / oncekiFiyat) * 100 : 0;
-                        
-                        let sinyal = "BEKLE ⏳";
-                        let sinyalClass = "badge-bekle";
-                        
-                        if (degisimOrani >= 0.06) { sinyal = "GÜÇLÜ AL 🚀"; sinyalClass = "badge-guclu-al"; }
-                        else if (degisimOrani >= 0.02) { sinyal = "AL 🔥"; sinyalClass = "badge-al"; }
-                        else if (degisimOrani <= -0.06) { sinyal = "GÜÇLÜ SAT 💥"; sinyalClass = "badge-guclu-sat"; }
-                        else if (degisimOrani <= -0.02) { sinyal = "SAT 🚨"; sinyalClass = "badge-sat"; }
-
-                        anlikDegisimler.push({
-                            sembol: sembol,
-                            fiyat_raw: sonFiyat,
-                            fiyat: sonFiyat.toLocaleString('tr-TR', {minimumFractionDigits: 4}) + " ₺",
-                            degisim_orani: degisimOrani,
-                            degisim_format: (degisimOrani > 0 ? "%+" : "%") + degisimOrani.toFixed(4),
-                            sinyal: sinyal,
-                            sinyalClass: sinyalClass
-                        });
-                        
-                        piyasaHafizasi[sembol] = sonFiyat;
-                    }
-                });
-
-                if (anlikDegisimler.length > 0) {
-                    anlikDegisimler.sort((a, b) => b.degisim_orani - a.degisim_orani);
-                    const top5 = anlikDegisimler.slice(0, 5);
-                    const tbody = document.getElementById('radar-rows');
-                    tbody.innerHTML = ''; 
-
-                    top5.forEach((coin) => {
-                        let aksiyonButonu = '';
-                        if (coin.sinyal.includes('AL')) {
-                            aksiyonButonu = `<button class="btn btn-aldim" onclick="pozisyonAc('${coin.sembol}', ${coin.fiyat_raw})">Aldım ✅</button>`;
-                        }
-
-                        tbody.innerHTML += `
-                            <tr>
-                                <td style="font-weight:600;">${coin.sembol}</td>
-                                <td style="font-family:monospace;">${coin.fiyat}</td>
-                                <td class="${coin.degisim_orani < 0 ? 'zarar' : (coin.degisim_orani > 0 ? 'kar' : '')}">${coin.degisim_format}</td>
-                                <td><span class="badge ${coin.sinyalClass}">${coin.sinyal}</span></td>
-                                <td>${aksiyonButonu}</td>
-                            </tr>
-                        `;
-                    });
-                }
-                
-                aktifTabloyuCiz();
-
-            } catch (error) {
-                console.error("API Bağlantı Hatası:", error);
-                document.getElementById('radar-rows').innerHTML = `<tr><td colspan="5" style="text-align: center; color:#f75a68;">Veriler alınamadı! Tarayıcınız yerel dosyalar için veri akışını engelliyor olabilir.</td></tr>`;
-            }
-        }
-
-        function pozisyonAc(sembol, alisFiyati) {
-            const yeniPozisyon = { id: new Date().getTime(), sembol: sembol, alis: alisFiyati };
-            aktifIslemler.push(yeniPozisyon);
-            hafizayaKaydet();
-            aktifTabloyuCiz();
-        }
-
-        function aktifTabloyuCiz() {
-            const tbody = document.getElementById('aktif-rows');
-            if (aktifIslemler.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color:#7c7c8a;">Henüz açık pozisyon yok.</td></tr>';
-                return;
-            }
+    async function veriGetir() {
+        try {
+            // Sunucunun tam adresini kullanıyoruz
+            const response = await fetch('https://kripto-radar-ff7n.onrender.com/api/veri');
+            if (!response.ok) throw new Error('Sunucudan yanıt gelmedi');
             
-            const hedefYuzde = parseFloat(document.getElementById('hedef-kar').value) || 0.5;
-            const stopYuzde = parseFloat(document.getElementById('stop-loss').value) || 1.0;
+            const data = await response.json();
             
-            tbody.innerHTML = '';
-            aktifIslemler.forEach(islem => {
-                const canliFiyat = sonFiyatlar[islem.sembol] || islem.alis;
-                const karYuzdesi = ((canliFiyat - islem.alis) / islem.alis) * 100;
-                const renkClass = canliFiyat >= islem.alis ? 'kar' : 'zarar';
-                const garantiFiyat = islem.alis * (1 + (hedefYuzde / 100));
-                
-                let durumRozeti = '<span class="badge badge-bekle">Bekleniyor ⏳</span>';
-                if (karYuzdesi >= hedefYuzde) {
-                    durumRozeti = '<span class="badge pulse-anim">HEDEF GELDİ 🚀</span>'; 
-                } else if (karYuzdesi <= -stopYuzde) {
-                    durumRozeti = '<span class="badge badge-sat">STOP OL 🚨</span>'; 
-                }
-
-                tbody.innerHTML += `
-                    <tr>
-                        <td style="font-weight:600;">${islem.sembol}</td>
-                        <td style="font-family:monospace;">${islem.alis.toLocaleString('tr-TR', {minimumFractionDigits: 4})} ₺<br><span style="font-size:0.75rem; color:#00adb5;">Hedef: ${garantiFiyat.toLocaleString('tr-TR', {minimumFractionDigits: 4})} ₺</span></td>
-                        <td class="${renkClass}" style="font-family:monospace;">
-                            ${canliFiyat.toLocaleString('tr-TR', {minimumFractionDigits: 4})} ₺ <br>
-                            <span style="font-size:0.8rem;">(%${karYuzdesi.toFixed(2)})</span>
-                        </td>
-                        <td>
-                            ${durumRozeti} <br>
-                            <button class="btn btn-sattim" style="margin-top: 5px; width: 100%;" onclick="pozisyonKapat(${islem.id}, '${islem.sembol}', ${islem.alis}, ${canliFiyat})">Sattım 💰</button>
-                        </td>
-                    </tr>
-                `;
+            // Tabloyu güncelleme
+            const tablo = document.getElementById('radar-rows');
+            tablo.innerHTML = ''; // Önce eskiyi temizle
+            
+            data.top5.forEach(coin => {
+                const row = `<tr>
+                    <td>${coin.sembol}</td>
+                    <td>${coin.fiyat}</td>
+                    <td style="color: ${coin.degisim_orani >= 0 ? 'green' : 'red'}">${coin.degisim_format}</td>
+                    <td>${coin.sinyal}</td>
+                </tr>`;
+                tablo.innerHTML += row;
             });
-        }
-
-        function pozisyonKapat(id, sembol, alis, canliFiyat) {
-            const satisGirişi = prompt(`${sembol} için satış fiyatını girin veya onaylayın:`, canliFiyat.toFixed(4));
-            if (satisGirişi === null) return; 
             
-            const satisFiyati = parseFloat(satisGirişi);
-            if (isNaN(satisFiyati)) { alert("Geçersiz fiyat girdiniz!"); return; }
-
-            const karZararTl = satisFiyati - alis;
-            const karZararYuzde = (karZararTl / alis) * 100;
-            const suAn = new Date();
-
-            const tamamlanan = {
-                saat: suAn.toTimeString().split(' ')[0],
-                sembol: sembol,
-                alis: alis,
-                satis: satisFiyati,
-                pnlTl: karZararTl,
-                pnlYuzde: karZararYuzde
-            };
-
-            aktifIslemler = aktifIslemler.filter(i => i.id !== id);
-            tamamlananIslemler.unshift(tamamlanan); 
-
-            hafizayaKaydet();
-            aktifTabloyuCiz();
-            ozetTabloyuCiz();
-        }
-
-        function ozetTabloyuCiz() {
-            const tbody = document.getElementById('ozet-rows');
-            const pnlKutusu = document.getElementById('toplam-pnl');
+            document.getElementById('status').innerText = "Son güncelleme: " + new Date().toLocaleTimeString();
             
-            if (tamamlananIslemler.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color:#7c7c8a;">Bugün henüz tamamlanmış işlem yok.</td></tr>';
-                pnlKutusu.innerText = "0.00 ₺";
-                pnlKutusu.className = "";
-                return;
-            }
-
-            tbody.innerHTML = '';
-            let toplamPnlTl = 0;
-
-            tamamlananIslemler.forEach(islem => {
-                toplamPnlTl += islem.pnlTl;
-                const pnlClass = islem.pnlTl >= 0 ? 'kar' : 'zarar';
-                const isaret = islem.pnlTl >= 0 ? '+' : '';
-
-                tbody.innerHTML += `
-                    <tr>
-                        <td style="color:#7c7c8a;">${islem.saat}</td>
-                        <td style="font-weight:600;">${islem.sembol}</td>
-                        <td style="font-family:monospace;">${islem.alis.toLocaleString('tr-TR', {minimumFractionDigits: 4})} ₺</td>
-                        <td style="font-family:monospace;">${islem.satis.toLocaleString('tr-TR', {minimumFractionDigits: 4})} ₺</td>
-                        <td class="${pnlClass}">${isaret}${islem.pnlTl.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺ <br><span style="font-size:0.8rem;">(${isaret}${islem.pnlYuzde.toFixed(2)}%)</span></td>
-                    </tr>
-                `;
-            });
-
-            pnlKutusu.innerText = `${toplamPnlTl >= 0 ? '+' : ''}${toplamPnlTl.toLocaleString('tr-TR', {minimumFractionDigits: 2})} ₺`;
-            pnlKutusu.className = toplamPnlTl >= 0 ? 'kar' : 'zarar';
+        } catch (error) {
+            console.error("Hata:", error);
+            document.getElementById('status').innerText = "Veri alınamadı, tekrar deneniyor...";
         }
+    }
 
-        function hafizayaKaydet() {
-            localStorage.setItem('aktifIslemler', JSON.stringify(aktifIslemler));
-            localStorage.setItem('tamamlananIslemler', JSON.stringify(tamamlananIslemler));
-        }
-
-        aktifTabloyuCiz();
-        ozetTabloyuCiz();
-        
-        // Piyasayı 5 saniyede bir tara
-        radarGuncelle();
-        setInterval(radarGuncelle, 5000); 
-    </script>
+    // Her 5 saniyede bir veriyi otomatik yenile
+    setInterval(veriGetir, 5000);
+    veriGetir();
+</script>
 </body>
 </html>
